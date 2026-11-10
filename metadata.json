@@ -1,0 +1,6 @@
+{
+  "name": "DC Listing Advisor",
+  "description": "Washington, DC property management advisory tool for Airbnb listing strategy and pricing with strict data provenance.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
