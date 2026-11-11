@@ -39,14 +39,14 @@ export const MarketContextCard: React.FC<MarketContextCardProps> = ({ analysis }
             </div>
             <div className="mt-3 flex items-baseline gap-2">
               <span className="text-3xl font-extrabold text-stone-900 font-mono">
-                <Traced traceId="superhost_pct">{marketContext.superhostPct}%</Traced>
+                <Traced traceId="superhost_pct">{marketContext.superhostPct.toFixed(1)}%</Traced>
               </span>
               <span className="text-xs text-stone-500">of active comps</span>
             </div>
           </div>
           <div className="mt-3 text-[11px] text-stone-500">
-            {marketContext.superhostCount} of {marketContext.compCount} local hosts hold Airbnb
-            Superhost status. High superhost density indicates competitive guest expectations.
+            {marketContext.superhostCount} of {marketContext.compCount} active comps hold Airbnb
+            Superhost status.
           </div>
         </div>
 
@@ -68,7 +68,6 @@ export const MarketContextCard: React.FC<MarketContextCardProps> = ({ analysis }
           </div>
           <div className="mt-3 text-[11px] text-stone-500">
             Based on {marketContext.reviewScoreCount} listings with active verified guest reviews.
-            Properties under 4.80 generally experience pricing pressure.
           </div>
         </div>
 
@@ -98,14 +97,14 @@ export const MarketContextCard: React.FC<MarketContextCardProps> = ({ analysis }
                   </span>
                   <div className="flex items-center gap-1.5 font-mono text-[11px]">
                     <span className="text-stone-900 font-semibold">{item.count}</span>
-                    <span className="text-stone-400">({item.pct}%)</span>
+                    <span className="text-stone-400">({item.pct.toFixed(1)}%)</span>
                   </div>
                 </div>
               ))}
             </div>
           </div>
           <div className="mt-3 text-[10px] text-stone-400 pt-2 border-t border-stone-200">
-            DC Short-Term Rental Act compliance tracked by Inside Airbnb.
+            License status as listed in Inside Airbnb data.
           </div>
         </div>
       </div>

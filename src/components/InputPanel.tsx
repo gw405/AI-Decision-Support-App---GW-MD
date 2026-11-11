@@ -46,24 +46,20 @@ export const InputPanel: React.FC<InputPanelProps> = ({
   compCount,
 }) => {
   const handleLoadSample = () => {
-    // Prompt specification: "Shaw, Logan Circle", 1 bedroom, Condo or apartment, Short-term, Market.
-    const targetNeighbourhood =
-      neighbourhoods.find((n) => n.toLowerCase().includes('shaw') || n.toLowerCase().includes('logan')) ||
-      'Shaw, Logan Circle';
-
+    // Exactly: neighbourhood = "Shaw, Logan Circle" (exact string match), bedrooms 1, accommodates blank/Any, unit type Condo or apartment, strategy Short-term, positioning Market. Clear Owner Economics.
     setInputs({
-      neighbourhood: targetNeighbourhood,
+      neighbourhood: 'Shaw, Logan Circle',
       bedrooms: 1,
-      accommodates: 2,
+      accommodates: null,
       unitType: 'Condo or apartment',
       strategy: 'short_term',
       positioning: 'market',
     });
 
     setOwnerInputs({
-      managementFeePct: 15,
-      monthlyFixedCosts: 250,
-      longTermMonthlyRent: 2400,
+      managementFeePct: null,
+      monthlyFixedCosts: null,
+      longTermMonthlyRent: null,
     });
   };
 

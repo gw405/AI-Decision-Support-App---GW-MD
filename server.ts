@@ -51,7 +51,7 @@ ${JSON.stringify(stats, null, 2)}
 Please draft the 150-word owner advisory memo adhering strictly to the bracketed key rules.`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.8-flash',
       contents: promptText,
       config: {
         systemInstruction,

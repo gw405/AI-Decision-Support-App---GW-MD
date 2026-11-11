@@ -111,7 +111,7 @@ function AdvisorApp() {
   useEffect(() => {
     if (neighbourhoods.length > 0 && !neighbourhoods.includes(inputs.neighbourhood)) {
       const match =
-        neighbourhoods.find((n) => n.toLowerCase().includes('shaw')) || neighbourhoods[0];
+        neighbourhoods.find((n) => n === 'Shaw, Logan Circle') || neighbourhoods[0];
       setInputs((prev) => ({ ...prev, neighbourhood: match }));
     }
   }, [neighbourhoods, inputs.neighbourhood]);

@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { AdvisorAnalysis, Listing } from '../lib/stats';
 import { useTrace } from '../context/TraceContext';
+import { Traced } from './Traced';
 import {
   BarChart,
   Bar,
@@ -49,6 +50,47 @@ export const Visuals: React.FC<VisualsProps> = ({ analysis, subjectNeighbourhood
     if (price < p25Price) return '#10b981'; // emerald
     if (price <= p75Price) return '#f59e0b'; // amber
     return '#8b5cf6'; // purple
+  };
+
+  // Helper to cleanly format and truncate neighbourhood labels to prevent overlapping
+  const formatNeighbourhoodLabel = (name: string, maxLen = 26): string => {
+    if (!name || name.length <= maxLen) return name;
+    const parts = name.split(',').map((p) => p.trim());
+    if (parts.length > 1) {
+      let result = parts[0];
+      for (let i = 1; i < parts.length; i++) {
+        if ((result + ', ' + parts[i]).length <= maxLen - 1) {
+          result += ', ' + parts[i];
+        } else {
+          return result + '…';
+        }
+      }
+      return result.length > maxLen ? result.slice(0, maxLen - 1) + '…' : result;
+    }
+    return name.slice(0, maxLen - 1) + '…';
+  };
+
+  const renderNeighbourhoodTick = (props: any) => {
+    const { x, y, payload } = props;
+    const fullName = payload?.value || '';
+    const isSubject = fullName === subjectNeighbourhood;
+    const label = formatNeighbourhoodLabel(fullName, 26);
+
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <title>{fullName}</title>
+        <text
+          x={-10}
+          y={4}
+          textAnchor="end"
+          fontSize={11}
+          fontWeight={isSubject ? 700 : 500}
+          fill={isSubject ? '#b45309' : '#44403c'}
+        >
+          {isSubject ? `★ ${label}` : label}
+        </text>
+      </g>
+    );
   };
 
   return (
@@ -125,18 +167,18 @@ export const Visuals: React.FC<VisualsProps> = ({ analysis, subjectNeighbourhood
           <div className="mt-3 pt-3 border-t border-stone-100 flex flex-wrap items-center justify-between text-[11px] font-mono text-stone-600 gap-2">
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-              <span>P25 Budget: ${p25Price}</span>
+              <span>P25 Budget: ${p25Price % 1 === 0 ? p25Price.toFixed(0) : p25Price.toFixed(2)}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-stone-700" />
-              <span>Median P50: ${p50Price}</span>
+              <span>Median P50: ${p50Price % 1 === 0 ? p50Price.toFixed(0) : p50Price.toFixed(2)}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-purple-500" />
-              <span>P75 Premium: ${p75Price}</span>
+              <span>P75 Premium: ${p75Price % 1 === 0 ? p75Price.toFixed(0) : p75Price.toFixed(2)}</span>
             </div>
             <div className="flex items-center gap-1.5 bg-amber-100 px-2 py-0.5 rounded font-bold text-amber-900">
-              <span>Target: ${recommendedPrice}</span>
+              <span>Target: ${recommendedPrice % 1 === 0 ? recommendedPrice.toFixed(0) : recommendedPrice.toFixed(2)}</span>
             </div>
           </div>
         </div>
@@ -212,8 +254,16 @@ export const Visuals: React.FC<VisualsProps> = ({ analysis, subjectNeighbourhood
             </ResponsiveContainer>
           </div>
 
-          <div className="mt-3 pt-3 border-t border-stone-100 text-[11px] text-stone-500 flex items-center justify-between">
-            <span>Higher ratings generally correlate with rate resilience above $200/night.</span>
+          <div className="mt-3 pt-3 border-t border-stone-100 text-[11px] text-stone-600 flex items-center justify-between">
+            <span>
+              Pearson correlation (price vs. review score):{' '}
+              <strong className="text-stone-900 font-mono">
+                <Traced traceId="price_rating_correlation">
+                  r = {analysis.priceRatingCorrelation.toFixed(2)}
+                </Traced>
+              </strong>{' '}
+              (n = {analysis.priceRatingCorrelationN})
+            </span>
           </div>
         </div>
       </div>
@@ -245,12 +295,13 @@ export const Visuals: React.FC<VisualsProps> = ({ analysis, subjectNeighbourhood
           </div>
         </div>
 
-        <div className="h-80 w-full">
+        <div className="h-[520px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={topNeighbourhoods}
               layout="vertical"
-              margin={{ top: 10, right: 30, left: 130, bottom: 25 }}
+              margin={{ top: 10, right: 35, left: 195, bottom: 25 }}
+              barCategoryGap="22%"
             >
               <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f0f0f0" />
               <XAxis
@@ -267,8 +318,9 @@ export const Visuals: React.FC<VisualsProps> = ({ analysis, subjectNeighbourhood
               <YAxis
                 type="category"
                 dataKey="neighbourhood"
-                tick={{ fontSize: 11, fill: '#44403c' }}
-                width={125}
+                tick={renderNeighbourhoodTick}
+                width={190}
+                interval={0}
               />
               <Tooltip
                 content={({ active, payload }) => {
@@ -290,7 +342,7 @@ export const Visuals: React.FC<VisualsProps> = ({ analysis, subjectNeighbourhood
                   return null;
                 }}
               />
-              <Bar dataKey="medianPrice" radius={[0, 4, 4, 0]}>
+              <Bar dataKey="medianPrice" radius={[0, 4, 4, 0]} barSize={16}>
                 {topNeighbourhoods.map((entry, index) => (
                   <Cell
                     key={`cell-${index}`}
@@ -324,15 +376,15 @@ export const Visuals: React.FC<VisualsProps> = ({ analysis, subjectNeighbourhood
             <span className="text-[11px] font-semibold text-stone-600">Price Tiers:</span>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-              <span className="text-stone-700 text-[11px]">&lt; ${p25Price} (Budget)</span>
+              <span className="text-stone-700 text-[11px]">&lt; ${p25Price % 1 === 0 ? p25Price.toFixed(0) : p25Price.toFixed(2)} (Budget)</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-              <span className="text-stone-700 text-[11px]">${p25Price}–${p75Price} (Market)</span>
+              <span className="text-stone-700 text-[11px]">${p25Price % 1 === 0 ? p25Price.toFixed(0) : p25Price.toFixed(2)}–${p75Price % 1 === 0 ? p75Price.toFixed(0) : p75Price.toFixed(2)} (Market)</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-purple-600" />
-              <span className="text-stone-700 text-[11px]">&gt; ${p75Price} (Premium)</span>
+              <span className="text-stone-700 text-[11px]">&gt; ${p75Price % 1 === 0 ? p75Price.toFixed(0) : p75Price.toFixed(2)} (Premium)</span>
             </div>
           </div>
         </div>

@@ -91,9 +91,9 @@ export const AiAdvisor: React.FC<AiAdvisorProps> = ({ analysis, inputs }) => {
     const paragraphs = memoText.split(/\n\s*\n/);
 
     return paragraphs.map((para) => {
-      // Regex to detect pattern: (optional currency/symbol)(number)(optional %)(spaces)[key]
+      // Regex to detect pattern: (optional currency/symbol)(number with commas)(optional %)(spaces)[key]
       // or bare numbers
-      const taggedRegex = /([$£€]?\s*\d+(?:\.\d+)?\s*%?)\s*\[([a-zA-Z0-9_]+)\]/g;
+      const taggedRegex = /([$£€]?\s*\d[\d,]*(?:\.\d+)?\s*%?)\s*\[([a-zA-Z0-9_]+)\]/g;
 
       // We process line by line or token by token
       const tokens: MemoToken[] = [];
@@ -147,8 +147,8 @@ export const AiAdvisor: React.FC<AiAdvisorProps> = ({ analysis, inputs }) => {
     numericEntries: Array<{ key: string; value: number }>
   ): MemoToken[] {
     const tokens: MemoToken[] = [];
-    // Matches numbers with optional dollar sign and percent
-    const numRegex = /([$£€]?\b\d+(?:\.\d+)?%?\b)/g;
+    // Matches numbers with optional dollar sign, commas and percent
+    const numRegex = /([$£€]?\b\d[\d,]*(?:\.\d+)?%?\b)/g;
     let lastIdx = 0;
     let m;
 

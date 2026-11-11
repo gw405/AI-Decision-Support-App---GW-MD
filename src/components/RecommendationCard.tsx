@@ -35,6 +35,11 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
       ? 'Premium (75th Percentile)'
       : 'Market (50th Percentile Median)';
 
+  const formatPrice = (v: number) =>
+    v % 1 === 0 ? v.toFixed(0) : v.toFixed(2);
+  const formatOcc = (v: number) =>
+    v % 1 === 0 ? v.toFixed(0) : v.toFixed(1);
+
   return (
     <div className="bg-white border border-stone-200 rounded-xl shadow-xs overflow-hidden">
       {/* Top Banner */}
@@ -61,7 +66,7 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
             </div>
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-3xl sm:text-4xl font-extrabold text-stone-950 font-mono tracking-tight">
-                $<Traced traceId="recommended_price">{recommendedPrice}</Traced>
+                $<Traced traceId="recommended_price">{formatPrice(recommendedPrice)}</Traced>
               </span>
               <span className="text-xs text-stone-500 font-medium">/ night</span>
             </div>
@@ -74,15 +79,15 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
             </span>
             <div className="flex items-center gap-1.5 text-xs text-stone-800 font-mono font-medium">
               <span>
-                $<Traced traceId="p25_price">{p25Price}</Traced> (P25)
+                $<Traced traceId="p25_price">{formatPrice(p25Price)}</Traced> (P25)
               </span>
               <span className="text-stone-300">—</span>
               <span className="text-stone-500 font-sans">
-                Median $<Traced traceId="p50_price">{p50Price}</Traced>
+                Median $<Traced traceId="p50_price">{formatPrice(p50Price)}</Traced>
               </span>
               <span className="text-stone-300">—</span>
               <span>
-                $<Traced traceId="p75_price">{p75Price}</Traced> (P75)
+                $<Traced traceId="p75_price">{formatPrice(p75Price)}</Traced> (P75)
               </span>
             </div>
           </div>
@@ -97,14 +102,14 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
             </div>
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-3xl sm:text-4xl font-extrabold text-emerald-950 font-mono tracking-tight">
-                $<Traced traceId="est_annual_revenue">{estAnnualRevenue.toLocaleString()}</Traced>
+                $<Traced traceId="est_annual_revenue">{Math.round(estAnnualRevenue).toLocaleString()}</Traced>
               </span>
               <span className="text-xs text-stone-500 font-medium">/ year</span>
             </div>
             <p className="text-xs text-stone-500 mt-1">
               Based on{' '}
               <strong className="text-stone-800 font-mono">
-                <Traced traceId="median_occupancy">{medianOccupancy}</Traced>
+                <Traced traceId="median_occupancy">{formatOcc(medianOccupancy)}</Traced>
               </strong>{' '}
               projected booked nights/yr
             </p>
@@ -113,8 +118,8 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
           <div className="pt-3 border-t border-stone-100 text-xs">
             <span className="text-[11px] text-stone-500 block font-medium">Formula:</span>
             <span className="text-stone-700 font-mono text-[11px]">
-              $<Traced traceId="recommended_price">{recommendedPrice}</Traced> ×{' '}
-              <Traced traceId="median_occupancy">{medianOccupancy}</Traced> nights
+              $<Traced traceId="recommended_price">{formatPrice(recommendedPrice)}</Traced> ×{' '}
+              <Traced traceId="median_occupancy">{formatOcc(medianOccupancy)}</Traced> nights
             </span>
           </div>
         </div>
@@ -128,7 +133,7 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
             </div>
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-2xl sm:text-3xl font-bold text-stone-800 font-mono tracking-tight">
-                $<Traced traceId="comps_median_revenue">{compsMedianRevenue.toLocaleString()}</Traced>
+                $<Traced traceId="comps_median_revenue">{Math.round(compsMedianRevenue).toLocaleString()}</Traced>
               </span>
               <span className="text-xs text-stone-500 font-medium">median/yr</span>
             </div>
@@ -141,10 +146,10 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
                 }`}
               >
                 <Traced traceId="revenue_diff_pct">
-                  {revenueDiffPct >= 0 ? `+${revenueDiffPct}%` : `${revenueDiffPct}%`}
+                  {revenueDiffPct >= 0 ? `+${revenueDiffPct.toFixed(1)}%` : `${revenueDiffPct.toFixed(1)}%`}
                 </Traced>
               </span>
-              <span className="text-[11px] text-stone-500">vs historical actuals</span>
+              <span className="text-[11px] text-stone-500">vs. Inside Airbnb estimated revenue</span>
             </div>
           </div>
 

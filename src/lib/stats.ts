@@ -152,6 +152,8 @@ export interface AdvisorAnalysis {
   }>;
   traces: Record<string, TraceRecord>;
   compactAiJson: Record<string, number | string | boolean>;
+  priceRatingCorrelation: number;
+  priceRatingCorrelationN: number;
 }
 
 export const CONDO_TYPES = new Set([
@@ -447,11 +449,11 @@ export function calculateAdvisorAnalysis(
   const tierResult = findComps(cleanedListings, inputs);
   const comps = tierResult.comps;
 
-  // Prices and percentiles
+  // Prices and percentiles (never round before multiplying)
   const compPrices = comps.map((c) => c.price).sort((a, b) => a - b);
-  const p25Price = Math.round(percentileInc(compPrices, 0.25));
-  const p50Price = Math.round(percentileInc(compPrices, 0.5));
-  const p75Price = Math.round(percentileInc(compPrices, 0.75));
+  const p25Price = percentileInc(compPrices, 0.25);
+  const p50Price = percentileInc(compPrices, 0.5);
+  const p75Price = percentileInc(compPrices, 0.75);
 
   let recommendedPrice = p50Price;
   if (inputs.positioning === 'budget') recommendedPrice = p25Price;
@@ -459,18 +461,17 @@ export function calculateAdvisorAnalysis(
 
   // Occupancy and revenues
   const compOccupancies = comps.map((c) => c.estimated_occupancy_l365d);
-  const medianOccupancy = Math.round(median(compOccupancies));
+  const medianOccupancy = median(compOccupancies);
 
-  const estAnnualRevenue = Math.round(recommendedPrice * medianOccupancy);
+  // Revenue = unrounded median price × median occupancy
+  const estAnnualRevenue = recommendedPrice * medianOccupancy;
 
   const compRevenues = comps.map((c) => c.estimated_revenue_l365d);
-  const compsMedianRevenue = Math.round(median(compRevenues));
+  const compsMedianRevenue = median(compRevenues);
 
   const revenueDiffPct =
     compsMedianRevenue > 0
-      ? Math.round(
-          ((estAnnualRevenue - compsMedianRevenue) / compsMedianRevenue) * 1000
-        ) / 10
+      ? ((estAnnualRevenue - compsMedianRevenue) / compsMedianRevenue) * 100
       : 0;
 
   // Strategy comparison (Short-term vs Monthly for same base property)
@@ -483,36 +484,34 @@ export function calculateAdvisorAnalysis(
     strategy: 'monthly',
   });
 
-  const stMedianPrice = Math.round(median(stResult.comps.map((c) => c.price)));
-  const stMedianOcc = Math.round(
-    median(stResult.comps.map((c) => c.estimated_occupancy_l365d))
+  const stMedianPrice = median(stResult.comps.map((c) => c.price));
+  const stMedianOcc = median(
+    stResult.comps.map((c) => c.estimated_occupancy_l365d)
   );
-  const stEstRevenue = Math.round(stMedianPrice * stMedianOcc);
-  const stMedianRev = Math.round(
-    median(stResult.comps.map((c) => c.estimated_revenue_l365d))
+  const stEstRevenue = stMedianPrice * stMedianOcc;
+  const stMedianRev = median(
+    stResult.comps.map((c) => c.estimated_revenue_l365d)
   );
 
-  const mMedianPrice = Math.round(median(monthlyResult.comps.map((c) => c.price)));
-  const mMedianOcc = Math.round(
-    median(monthlyResult.comps.map((c) => c.estimated_occupancy_l365d))
+  const mMedianPrice = median(monthlyResult.comps.map((c) => c.price));
+  const mMedianOcc = median(
+    monthlyResult.comps.map((c) => c.estimated_occupancy_l365d)
   );
-  const mEstRevenue = Math.round(mMedianPrice * mMedianOcc);
-  const mMedianRev = Math.round(
-    median(monthlyResult.comps.map((c) => c.estimated_revenue_l365d))
+  const mEstRevenue = mMedianPrice * mMedianOcc;
+  const mMedianRev = median(
+    monthlyResult.comps.map((c) => c.estimated_revenue_l365d)
   );
 
   // Market Context
   const superhostCount = comps.filter((c) => c.host_is_superhost === 't').length;
   const superhostPct =
-    comps.length > 0 ? Math.round((superhostCount / comps.length) * 1000) / 10 : 0;
+    comps.length > 0 ? (superhostCount / comps.length) * 100 : 0;
 
   const validRatings = comps
     .map((c) => c.review_scores_rating)
     .filter((r): r is number => r !== null && !isNaN(r));
   const medianReviewRating =
-    validRatings.length > 0
-      ? Math.round(percentileInc(validRatings, 0.5) * 100) / 100
-      : null;
+    validRatings.length > 0 ? percentileInc(validRatings, 0.5) : null;
 
   // License breakdown
   const licenseCounts: Record<string, number> = {
@@ -535,7 +534,7 @@ export function calculateAdvisorAnalysis(
     ([status, count]) => ({
       status,
       count,
-      pct: comps.length > 0 ? Math.round((count / comps.length) * 1000) / 10 : 0,
+      pct: comps.length > 0 ? (count / comps.length) * 100 : 0,
     })
   );
 
@@ -549,17 +548,17 @@ export function calculateAdvisorAnalysis(
     ownerInputs.longTermMonthlyRent !== null;
 
   const grossAirbnbAnnual = estAnnualRevenue;
-  const managementFeeAnnual = Math.round(grossAirbnbAnnual * (feePct / 100));
-  const fixedCostsAnnual = Math.round(fixedCosts * 12);
+  const managementFeeAnnual = grossAirbnbAnnual * (feePct / 100);
+  const fixedCostsAnnual = fixedCosts * 12;
   const netAirbnbAnnual = grossAirbnbAnnual - managementFeeAnnual - fixedCostsAnnual;
-  const longTermLeaseAnnual = Math.round(monthlyRent * 12);
+  const longTermLeaseAnnual = monthlyRent * 12;
   const netDifference = netAirbnbAnnual - longTermLeaseAnnual;
 
   let breakEvenPrice: number | null = null;
   const feeMultiplier = 1 - feePct / 100;
   if (medianOccupancy > 0 && feeMultiplier > 0 && monthlyRent > 0) {
     const requiredGross = (longTermLeaseAnnual + fixedCostsAnnual) / feeMultiplier;
-    breakEvenPrice = Math.round((requiredGross / medianOccupancy) * 10) / 10;
+    breakEvenPrice = requiredGross / medianOccupancy;
   }
 
   // Visuals: Histogram, Top 15 Neighbourhoods, Scatter Comps
@@ -579,6 +578,36 @@ export function calculateAdvisorAnalysis(
       occupancy: c.estimated_occupancy_l365d,
     }));
 
+  // Pearson correlation between price and review_scores_rating
+  const ratingPricePairs = comps
+    .filter((c) => c.review_scores_rating !== null && !isNaN(c.review_scores_rating))
+    .map((c) => ({ x: c.review_scores_rating as number, y: c.price }));
+
+  let priceRatingCorrelation = 0;
+  if (ratingPricePairs.length > 1) {
+    const k = ratingPricePairs.length;
+    const meanX = ratingPricePairs.reduce((s, p) => s + p.x, 0) / k;
+    const meanY = ratingPricePairs.reduce((s, p) => s + p.y, 0) / k;
+    let num = 0;
+    let denX = 0;
+    let denY = 0;
+    for (const p of ratingPricePairs) {
+      const dx = p.x - meanX;
+      const dy = p.y - meanY;
+      num += dx * dy;
+      denX += dx * dx;
+      denY += dy * dy;
+    }
+    const den = Math.sqrt(denX * denY);
+    priceRatingCorrelation = den > 0 ? num / den : 0;
+  }
+
+  // Formatting helpers for display and trace drawer
+  const formatPrice = (v: number) =>
+    v % 1 === 0 ? v.toFixed(0) : v.toFixed(2);
+  const formatOcc = (v: number) =>
+    v % 1 === 0 ? v.toFixed(0) : v.toFixed(1);
+
   // Build Provenance Traces Dictionary
   const commonFilters = [
     `Neighbourhood: ${inputs.neighbourhood}`,
@@ -594,7 +623,7 @@ export function calculateAdvisorAnalysis(
     recommended_price: {
       id: 'recommended_price',
       label: 'Recommended Nightly Price',
-      valueFormatted: `$${recommendedPrice} / night`,
+      valueFormatted: `$${formatPrice(recommendedPrice)} / night`,
       numericValue: recommendedPrice,
       formula: `Computed as the ${inputs.positioning === 'budget' ? '25th percentile (P25)' : inputs.positioning === 'premium' ? '75th percentile (P75)' : 'median (50th percentile)'} of comp nightly rates using Excel PERCENTILE.INC linear interpolation.`,
       filters: commonFilters,
@@ -604,7 +633,7 @@ export function calculateAdvisorAnalysis(
     p25_price: {
       id: 'p25_price',
       label: 'Budget (25th Percentile) Price',
-      valueFormatted: `$${p25Price} / night`,
+      valueFormatted: `$${formatPrice(p25Price)} / night`,
       numericValue: p25Price,
       formula: '25th percentile of comp nightly prices (Excel PERCENTILE.INC linear interpolation).',
       filters: commonFilters,
@@ -614,7 +643,7 @@ export function calculateAdvisorAnalysis(
     p50_price: {
       id: 'p50_price',
       label: 'Market (Median / P50) Price',
-      valueFormatted: `$${p50Price} / night`,
+      valueFormatted: `$${formatPrice(p50Price)} / night`,
       numericValue: p50Price,
       formula: 'Median (50th percentile) of comp nightly prices (Excel PERCENTILE.INC linear interpolation).',
       filters: commonFilters,
@@ -624,7 +653,7 @@ export function calculateAdvisorAnalysis(
     p75_price: {
       id: 'p75_price',
       label: 'Premium (75th Percentile) Price',
-      valueFormatted: `$${p75Price} / night`,
+      valueFormatted: `$${formatPrice(p75Price)} / night`,
       numericValue: p75Price,
       formula: '75th percentile of comp nightly prices (Excel PERCENTILE.INC linear interpolation).',
       filters: commonFilters,
@@ -634,7 +663,7 @@ export function calculateAdvisorAnalysis(
     median_occupancy: {
       id: 'median_occupancy',
       label: 'Median Annual Occupancy',
-      valueFormatted: `${medianOccupancy} nights / yr`,
+      valueFormatted: `${formatOcc(medianOccupancy)} nights / yr`,
       numericValue: medianOccupancy,
       formula: 'Median of estimated_occupancy_l365d across the filtered comp set.',
       filters: commonFilters,
@@ -644,9 +673,9 @@ export function calculateAdvisorAnalysis(
     est_annual_revenue: {
       id: 'est_annual_revenue',
       label: 'Estimated Annual Revenue',
-      valueFormatted: `$${estAnnualRevenue.toLocaleString()}`,
+      valueFormatted: `$${Math.round(estAnnualRevenue).toLocaleString()}`,
       numericValue: estAnnualRevenue,
-      formula: `Product of Chosen Recommended Price ($${recommendedPrice}) × Median Comp Occupancy (${medianOccupancy} nights/yr).`,
+      formula: `Product of Chosen Recommended Price ($${formatPrice(recommendedPrice)}) × Median Comp Occupancy (${formatOcc(medianOccupancy)} nights/yr).`,
       filters: commonFilters,
       n: comps.length,
       rows: comps,
@@ -654,7 +683,7 @@ export function calculateAdvisorAnalysis(
     comps_median_revenue: {
       id: 'comps_median_revenue',
       label: 'Comps Median Historical Revenue (Cross-Check)',
-      valueFormatted: `$${compsMedianRevenue.toLocaleString()}`,
+      valueFormatted: `$${Math.round(compsMedianRevenue).toLocaleString()}`,
       numericValue: compsMedianRevenue,
       formula: 'Median of estimated_revenue_l365d across all comps in the comp set.',
       filters: commonFilters,
@@ -664,7 +693,7 @@ export function calculateAdvisorAnalysis(
     revenue_diff_pct: {
       id: 'revenue_diff_pct',
       label: 'Revenue Estimate Cross-Check Difference',
-      valueFormatted: `${revenueDiffPct > 0 ? '+' : ''}${revenueDiffPct}%`,
+      valueFormatted: `${revenueDiffPct >= 0 ? '+' : ''}${revenueDiffPct.toFixed(1)}%`,
       numericValue: revenueDiffPct,
       formula: '((Estimated Annual Revenue - Comps Median Revenue) / Comps Median Revenue) × 100%.',
       filters: commonFilters,
@@ -684,7 +713,7 @@ export function calculateAdvisorAnalysis(
     superhost_pct: {
       id: 'superhost_pct',
       label: 'Superhost Share',
-      valueFormatted: `${superhostPct}%`,
+      valueFormatted: `${superhostPct.toFixed(1)}%`,
       numericValue: superhostPct,
       formula: `(Comps where host_is_superhost = "t" [${superhostCount}] / Total Comps [${comps.length}]) × 100%.`,
       filters: commonFilters,
@@ -694,17 +723,27 @@ export function calculateAdvisorAnalysis(
     median_review_score: {
       id: 'median_review_score',
       label: 'Median Review Rating',
-      valueFormatted: `${medianReviewRating ?? 'N/A'} / 5.0`,
+      valueFormatted: `${medianReviewRating !== null ? medianReviewRating.toFixed(2) : 'N/A'} / 5.0`,
       numericValue: medianReviewRating ?? 0,
       formula: 'Median of review_scores_rating among comps with reported guest reviews.',
       filters: [...commonFilters, `Review count with ratings: ${validRatings.length}`],
       n: validRatings.length,
       rows: comps.filter((c) => c.review_scores_rating !== null),
     },
+    price_rating_correlation: {
+      id: 'price_rating_correlation',
+      label: 'Price & Review Score Pearson Correlation (r)',
+      valueFormatted: `r = ${priceRatingCorrelation.toFixed(2)}`,
+      numericValue: priceRatingCorrelation,
+      formula: 'Pearson correlation coefficient (r) computed between nightly price and review_scores_rating across comps with reported review scores.',
+      filters: [...commonFilters, 'Listings with valid review scores'],
+      n: ratingPricePairs.length,
+      rows: comps.filter((c) => c.review_scores_rating !== null),
+    },
     st_median_price: {
       id: 'st_median_price',
       label: 'Short-Term Median Nightly Price',
-      valueFormatted: `$${stMedianPrice} / night`,
+      valueFormatted: `$${formatPrice(stMedianPrice)} / night`,
       numericValue: stMedianPrice,
       formula: 'Median price for minimum_nights < 30 comp set.',
       filters: [`Strategy = Short-term (<30)`, `Tier: ${stResult.tierLabel}`],
@@ -714,7 +753,7 @@ export function calculateAdvisorAnalysis(
     st_occupancy: {
       id: 'st_occupancy',
       label: 'Short-Term Median Occupancy',
-      valueFormatted: `${stMedianOcc} nights / yr`,
+      valueFormatted: `${formatOcc(stMedianOcc)} nights / yr`,
       numericValue: stMedianOcc,
       formula: 'Median estimated_occupancy_l365d for short-term comp set.',
       filters: [`Strategy = Short-term (<30)`],
@@ -724,9 +763,9 @@ export function calculateAdvisorAnalysis(
     st_revenue: {
       id: 'st_revenue',
       label: 'Short-Term Annual Revenue Estimate',
-      valueFormatted: `$${stEstRevenue.toLocaleString()}`,
+      valueFormatted: `$${Math.round(stEstRevenue).toLocaleString()}`,
       numericValue: stEstRevenue,
-      formula: `Short-Term Median Price ($${stMedianPrice}) × Short-Term Median Occupancy (${stMedianOcc} nights).`,
+      formula: `Short-Term Median Price ($${formatPrice(stMedianPrice)}) × Short-Term Median Occupancy (${formatOcc(stMedianOcc)} nights).`,
       filters: [`Strategy = Short-term (<30)`],
       n: stResult.comps.length,
       rows: stResult.comps,
@@ -734,7 +773,7 @@ export function calculateAdvisorAnalysis(
     monthly_median_price: {
       id: 'monthly_median_price',
       label: 'Monthly Lease Median Nightly Rate',
-      valueFormatted: `$${mMedianPrice} / night`,
+      valueFormatted: `$${formatPrice(mMedianPrice)} / night`,
       numericValue: mMedianPrice,
       formula: 'Median price for minimum_nights >= 30 comp set.',
       filters: [`Strategy = Monthly (>=30)`, `Tier: ${monthlyResult.tierLabel}`],
@@ -744,7 +783,7 @@ export function calculateAdvisorAnalysis(
     monthly_occupancy: {
       id: 'monthly_occupancy',
       label: 'Monthly Median Occupancy',
-      valueFormatted: `${mMedianOcc} nights / yr`,
+      valueFormatted: `${formatOcc(mMedianOcc)} nights / yr`,
       numericValue: mMedianOcc,
       formula: 'Median estimated_occupancy_l365d for monthly comp set.',
       filters: [`Strategy = Monthly (>=30)`],
@@ -754,9 +793,9 @@ export function calculateAdvisorAnalysis(
     monthly_revenue: {
       id: 'monthly_revenue',
       label: 'Monthly Annual Revenue Estimate',
-      valueFormatted: `$${mEstRevenue.toLocaleString()}`,
+      valueFormatted: `$${Math.round(mEstRevenue).toLocaleString()}`,
       numericValue: mEstRevenue,
-      formula: `Monthly Median Price ($${mMedianPrice}) × Monthly Median Occupancy (${mMedianOcc} nights).`,
+      formula: `Monthly Median Price ($${formatPrice(mMedianPrice)}) × Monthly Median Occupancy (${formatOcc(mMedianOcc)} nights).`,
       filters: [`Strategy = Monthly (>=30)`],
       n: monthlyResult.comps.length,
       rows: monthlyResult.comps,
@@ -764,9 +803,9 @@ export function calculateAdvisorAnalysis(
     net_airbnb_income: {
       id: 'net_airbnb_income',
       label: 'Net Annual Airbnb Income',
-      valueFormatted: `$${netAirbnbAnnual.toLocaleString()}`,
+      valueFormatted: `$${Math.round(netAirbnbAnnual).toLocaleString()}`,
       numericValue: netAirbnbAnnual,
-      formula: `Gross Revenue ($${grossAirbnbAnnual.toLocaleString()}) - Management Fee ($${managementFeeAnnual.toLocaleString()} at ${feePct}%) - Fixed Annual Operating Costs ($${fixedCostsAnnual.toLocaleString()}).`,
+      formula: `Gross Revenue ($${Math.round(grossAirbnbAnnual).toLocaleString()}) - Management Fee ($${Math.round(managementFeeAnnual).toLocaleString()} at ${feePct}%) - Fixed Annual Operating Costs ($${Math.round(fixedCostsAnnual).toLocaleString()}).`,
       filters: commonFilters,
       n: comps.length,
       rows: comps,
@@ -774,9 +813,9 @@ export function calculateAdvisorAnalysis(
     long_term_lease_annual: {
       id: 'long_term_lease_annual',
       label: 'Long-Term Lease 12-Month Total',
-      valueFormatted: `$${longTermLeaseAnnual.toLocaleString()}`,
+      valueFormatted: `$${Math.round(longTermLeaseAnnual).toLocaleString()}`,
       numericValue: longTermLeaseAnnual,
-      formula: `Monthly Rent ($${monthlyRent.toLocaleString()}) × 12 months.`,
+      formula: `Monthly Rent ($${Math.round(monthlyRent).toLocaleString()}) × 12 months.`,
       filters: [`User Input: Monthly Rent = $${monthlyRent}`],
       n: 1,
       rows: comps,
@@ -784,9 +823,9 @@ export function calculateAdvisorAnalysis(
     break_even_price: {
       id: 'break_even_price',
       label: 'Break-Even Nightly Rate',
-      valueFormatted: breakEvenPrice !== null ? `$${breakEvenPrice} / night` : 'N/A',
+      valueFormatted: breakEvenPrice !== null ? `$${formatPrice(breakEvenPrice)} / night` : 'N/A',
       numericValue: breakEvenPrice ?? 0,
-      formula: `(12 × Monthly Rent [$${longTermLeaseAnnual}] + 12 × Fixed Costs [$${fixedCostsAnnual}]) / (Median Occupancy [${medianOccupancy}] × (1 - Fee Rate [${feeMultiplier.toFixed(2)}])).`,
+      formula: `(12 × Monthly Rent [$${Math.round(longTermLeaseAnnual).toLocaleString()}] + 12 × Fixed Costs [$${Math.round(fixedCostsAnnual).toLocaleString()}]) / (Median Occupancy [${formatOcc(medianOccupancy)}] × (1 - Fee Rate [${feeMultiplier.toFixed(2)}])).`,
       filters: commonFilters,
       n: comps.length,
       rows: comps,
@@ -794,9 +833,9 @@ export function calculateAdvisorAnalysis(
     net_income_diff: {
       id: 'net_income_diff',
       label: 'Net Income Difference (Airbnb vs Long-Term Lease)',
-      valueFormatted: `${netDifference >= 0 ? '+' : ''}$${netDifference.toLocaleString()}`,
+      valueFormatted: `${netDifference >= 0 ? '+' : ''}$${Math.round(netDifference).toLocaleString()}`,
       numericValue: netDifference,
-      formula: `Net Annual Airbnb Income ($${netAirbnbAnnual.toLocaleString()}) - 12 × Long-Term Monthly Rent ($${longTermLeaseAnnual.toLocaleString()}).`,
+      formula: `Net Annual Airbnb Income ($${Math.round(netAirbnbAnnual).toLocaleString()}) - 12 × Long-Term Monthly Rent ($${Math.round(longTermLeaseAnnual).toLocaleString()}).`,
       filters: commonFilters,
       n: comps.length,
       rows: comps,
@@ -812,30 +851,31 @@ export function calculateAdvisorAnalysis(
     positioning: inputs.positioning,
     comp_count: comps.length,
     comp_tier: tierResult.tier,
-    recommended_price: recommendedPrice,
-    p25_price: p25Price,
-    p50_price: p50Price,
-    p75_price: p75Price,
-    median_occupancy: medianOccupancy,
-    est_annual_revenue: estAnnualRevenue,
-    comps_median_revenue: compsMedianRevenue,
-    revenue_diff_pct: revenueDiffPct,
-    superhost_pct: superhostPct,
-    median_review_score: medianReviewRating ?? 0,
-    st_median_price: stMedianPrice,
-    st_occupancy: stMedianOcc,
-    st_revenue: stEstRevenue,
-    monthly_median_price: mMedianPrice,
-    monthly_occupancy: mMedianOcc,
-    monthly_revenue: mEstRevenue,
+    recommended_price: Number(recommendedPrice.toFixed(2)),
+    p25_price: Number(p25Price.toFixed(2)),
+    p50_price: Number(p50Price.toFixed(2)),
+    p75_price: Number(p75Price.toFixed(2)),
+    median_occupancy: Number(medianOccupancy.toFixed(1)),
+    est_annual_revenue: Math.round(estAnnualRevenue),
+    comps_median_revenue: Math.round(compsMedianRevenue),
+    revenue_diff_pct: Number(revenueDiffPct.toFixed(1)),
+    superhost_pct: Number(superhostPct.toFixed(1)),
+    median_review_score: medianReviewRating !== null ? Number(medianReviewRating.toFixed(2)) : 0,
+    price_rating_correlation: Number(priceRatingCorrelation.toFixed(2)),
+    st_median_price: Number(stMedianPrice.toFixed(2)),
+    st_occupancy: Number(stMedianOcc.toFixed(1)),
+    st_revenue: Math.round(stEstRevenue),
+    monthly_median_price: Number(mMedianPrice.toFixed(2)),
+    monthly_occupancy: Number(mMedianOcc.toFixed(1)),
+    monthly_revenue: Math.round(mEstRevenue),
     management_fee_pct: feePct,
     monthly_fixed_costs: fixedCosts,
     long_term_monthly_rent: monthlyRent,
-    gross_airbnb_annual: grossAirbnbAnnual,
-    net_airbnb_income: netAirbnbAnnual,
-    long_term_lease_annual: longTermLeaseAnnual,
-    net_income_diff: netDifference,
-    break_even_price: breakEvenPrice ?? 0,
+    gross_airbnb_annual: Math.round(grossAirbnbAnnual),
+    net_airbnb_income: Math.round(netAirbnbAnnual),
+    long_term_lease_annual: Math.round(longTermLeaseAnnual),
+    net_income_diff: Math.round(netDifference),
+    break_even_price: breakEvenPrice !== null ? Number(breakEvenPrice.toFixed(2)) : 0,
     has_owner_economics: hasEconomicsInputs,
   };
 
@@ -902,5 +942,7 @@ export function calculateAdvisorAnalysis(
     scatterComps,
     traces,
     compactAiJson,
+    priceRatingCorrelation,
+    priceRatingCorrelationN: ratingPricePairs.length,
   };
 }

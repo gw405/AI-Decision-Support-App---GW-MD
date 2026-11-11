@@ -31,7 +31,7 @@ export const StrategyCard: React.FC<StrategyCardProps> = ({
           </h3>
         </div>
         <span className="text-xs text-stone-500 hidden sm:inline">
-          Same cohort specifications evaluated under DC regulations
+          Same comp criteria, split by minimum stay
         </span>
       </div>
 
@@ -65,21 +65,25 @@ export const StrategyCard: React.FC<StrategyCardProps> = ({
             <div className="flex items-center justify-between p-2.5 bg-white rounded-lg border border-stone-200">
               <span className="text-stone-600 font-sans">Median Nightly Price:</span>
               <span className="font-bold text-stone-950 text-sm">
-                $<Traced traceId="st_median_price">{shortTerm.medianPrice}</Traced> / nt
+                $<Traced traceId="st_median_price">
+                  {shortTerm.medianPrice % 1 === 0 ? shortTerm.medianPrice.toFixed(0) : shortTerm.medianPrice.toFixed(2)}
+                </Traced> / nt
               </span>
             </div>
 
             <div className="flex items-center justify-between p-2.5 bg-white rounded-lg border border-stone-200">
               <span className="text-stone-600 font-sans">Median Booked Nights/Yr:</span>
               <span className="font-bold text-stone-950 text-sm">
-                <Traced traceId="st_occupancy">{shortTerm.medianOccupancy}</Traced> nights
+                <Traced traceId="st_occupancy">
+                  {shortTerm.medianOccupancy % 1 === 0 ? shortTerm.medianOccupancy.toFixed(0) : shortTerm.medianOccupancy.toFixed(1)}
+                </Traced> nights
               </span>
             </div>
 
             <div className="flex items-center justify-between p-2.5 bg-amber-100/60 rounded-lg border border-amber-300/80">
               <span className="text-amber-950 font-sans font-semibold">Annual Revenue Projection:</span>
               <span className="font-extrabold text-amber-950 text-base">
-                $<Traced traceId="st_revenue">{shortTerm.estAnnualRevenue.toLocaleString()}</Traced>
+                $<Traced traceId="st_revenue">{Math.round(shortTerm.estAnnualRevenue).toLocaleString()}</Traced>
               </span>
             </div>
           </div>
@@ -123,21 +127,25 @@ export const StrategyCard: React.FC<StrategyCardProps> = ({
             <div className="flex items-center justify-between p-2.5 bg-white rounded-lg border border-stone-200">
               <span className="text-stone-600 font-sans">Median Nightly Price:</span>
               <span className="font-bold text-stone-950 text-sm">
-                $<Traced traceId="monthly_median_price">{monthly.medianPrice}</Traced> / nt
+                $<Traced traceId="monthly_median_price">
+                  {monthly.medianPrice % 1 === 0 ? monthly.medianPrice.toFixed(0) : monthly.medianPrice.toFixed(2)}
+                </Traced> / nt
               </span>
             </div>
 
             <div className="flex items-center justify-between p-2.5 bg-white rounded-lg border border-stone-200">
               <span className="text-stone-600 font-sans">Median Booked Nights/Yr:</span>
               <span className="font-bold text-stone-950 text-sm">
-                <Traced traceId="monthly_occupancy">{monthly.medianOccupancy}</Traced> nights
+                <Traced traceId="monthly_occupancy">
+                  {monthly.medianOccupancy % 1 === 0 ? monthly.medianOccupancy.toFixed(0) : monthly.medianOccupancy.toFixed(1)}
+                </Traced> nights
               </span>
             </div>
 
             <div className="flex items-center justify-between p-2.5 bg-amber-100/60 rounded-lg border border-amber-300/80">
               <span className="text-amber-950 font-sans font-semibold">Annual Revenue Projection:</span>
               <span className="font-extrabold text-amber-950 text-base">
-                $<Traced traceId="monthly_revenue">{monthly.estAnnualRevenue.toLocaleString()}</Traced>
+                $<Traced traceId="monthly_revenue">{Math.round(monthly.estAnnualRevenue).toLocaleString()}</Traced>
               </span>
             </div>
           </div>

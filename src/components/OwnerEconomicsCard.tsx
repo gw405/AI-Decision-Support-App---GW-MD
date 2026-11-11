@@ -69,7 +69,7 @@ export const OwnerEconomicsCard: React.FC<OwnerEconomicsCardProps> = ({ analysis
 
               <div className="flex items-baseline gap-2">
                 <span className="text-3xl font-extrabold text-stone-950 font-mono">
-                  $<Traced traceId="net_airbnb_income">{netAirbnbAnnual.toLocaleString()}</Traced>
+                  $<Traced traceId="net_airbnb_income">{Math.round(netAirbnbAnnual).toLocaleString()}</Traced>
                 </span>
                 <span className="text-xs text-stone-500">net / year</span>
               </div>
@@ -78,15 +78,15 @@ export const OwnerEconomicsCard: React.FC<OwnerEconomicsCardProps> = ({ analysis
               <div className="text-xs text-stone-600 space-y-1 pt-2 border-t border-stone-200/80 font-mono">
                 <div className="flex justify-between">
                   <span className="font-sans">Gross Airbnb Revenue:</span>
-                  <span>$<Traced traceId="est_annual_revenue">{grossAirbnbAnnual.toLocaleString()}</Traced></span>
+                  <span>$<Traced traceId="est_annual_revenue">{Math.round(grossAirbnbAnnual).toLocaleString()}</Traced></span>
                 </div>
                 <div className="flex justify-between text-red-700">
                   <span className="font-sans">Management Fee ({managementFeePct}%):</span>
-                  <span>-${managementFeeAnnual.toLocaleString()}</span>
+                  <span>-${Math.round(managementFeeAnnual).toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-red-700">
                   <span className="font-sans">Annual Fixed Costs (${monthlyFixedCosts} × 12):</span>
-                  <span>-${fixedCostsAnnual.toLocaleString()}</span>
+                  <span>-${Math.round(fixedCostsAnnual).toLocaleString()}</span>
                 </div>
               </div>
             </div>
@@ -104,7 +104,7 @@ export const OwnerEconomicsCard: React.FC<OwnerEconomicsCardProps> = ({ analysis
 
               <div className="flex items-baseline gap-2">
                 <span className="text-3xl font-extrabold text-stone-800 font-mono">
-                  $<Traced traceId="long_term_lease_annual">{longTermLeaseAnnual.toLocaleString()}</Traced>
+                  $<Traced traceId="long_term_lease_annual">{Math.round(longTermLeaseAnnual).toLocaleString()}</Traced>
                 </span>
                 <span className="text-xs text-stone-500">annual rent</span>
               </div>
@@ -130,8 +130,8 @@ export const OwnerEconomicsCard: React.FC<OwnerEconomicsCardProps> = ({ analysis
                 >
                   <Traced traceId="net_income_diff">
                     {netDifference >= 0
-                      ? `+$${netDifference.toLocaleString()}`
-                      : `-$${Math.abs(netDifference).toLocaleString()}`}
+                      ? `+$${Math.round(netDifference).toLocaleString()}`
+                      : `-$${Math.abs(Math.round(netDifference)).toLocaleString()}`}
                   </Traced>
                 </span>
                 <span className="text-xs text-stone-300">
@@ -148,7 +148,13 @@ export const OwnerEconomicsCard: React.FC<OwnerEconomicsCardProps> = ({ analysis
               </span>
               <div className="flex items-baseline gap-2">
                 <span className="text-2xl font-bold text-amber-300 font-mono">
-                  $<Traced traceId="break_even_price">{breakEvenPrice ?? 0}</Traced>
+                  $<Traced traceId="break_even_price">
+                    {breakEvenPrice !== null
+                      ? breakEvenPrice % 1 === 0
+                        ? breakEvenPrice.toFixed(0)
+                        : breakEvenPrice.toFixed(2)
+                      : '0'}
+                  </Traced>
                 </span>
                 <span className="text-xs text-stone-300">/ night to match lease</span>
               </div>

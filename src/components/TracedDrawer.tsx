@@ -27,6 +27,17 @@ export const TracedDrawer: React.FC = () => {
   const [page, setPage] = useState<number>(1);
   const pageSize = 50;
 
+  React.useEffect(() => {
+    if (!activeTrace) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closeTrace();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeTrace, closeTrace]);
+
   const filteredAndSortedRows = useMemo(() => {
     if (!activeTrace || !activeTrace.rows) return [];
     let rows = [...activeTrace.rows];
